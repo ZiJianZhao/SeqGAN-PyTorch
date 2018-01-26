@@ -203,7 +203,7 @@ def main():
             targets = Variable(samples.data).contiguous().view((-1,))
             # calculate the reward
             rewards = rollout.get_reward(samples, 16, discriminator)
-            rewards = Variable(torch.Tensor(rewards))
+            rewards = Variable(torch.Tensor(rewards)).contiguous().view((-1,))
             if opt.cuda:
                 rewards = torch.exp(rewards.cuda()).contiguous().view((-1,))
             prob = generator.forward(inputs)
