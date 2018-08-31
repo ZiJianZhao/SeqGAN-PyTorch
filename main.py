@@ -204,8 +204,9 @@ def main():
             # calculate the reward
             rewards = rollout.get_reward(samples, 16, discriminator)
             rewards = Variable(torch.Tensor(rewards))
+            rewards = torch.exp(rewards).contiguous().view((-1,))
             if opt.cuda:
-                rewards = torch.exp(rewards.cuda()).contiguous().view((-1,))
+                rewards = rewards.cuda()
             prob = generator.forward(inputs)
             loss = gen_gan_loss(prob, targets, rewards)
             gen_gan_optm.zero_grad()
