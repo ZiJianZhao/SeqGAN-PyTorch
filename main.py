@@ -78,7 +78,7 @@ def train_epoch(model, data_iter, criterion, optimizer):
         target = target.contiguous().view(-1)
         pred = model.forward(data)
         loss = criterion(pred, target)
-        total_loss += loss.data[0]
+        total_loss += loss.item()
         total_words += data.size(0) * data.size(1)
         optimizer.zero_grad()
         loss.backward()
@@ -98,7 +98,7 @@ def eval_epoch(model, data_iter, criterion):
         target = target.contiguous().view(-1)
         pred = model.forward(data)
         loss = criterion(pred, target)
-        total_loss += loss.data[0]
+        total_loss += loss.item()
         total_words += data.size(0) * data.size(1)
     data_iter.reset()
     return math.exp(total_loss / total_words)
@@ -111,7 +111,7 @@ class GANLoss(nn.Module):
     def forward(self, prob, target, reward):
         """
         Args:
-            prob: (N, C), torch Variable 
+            prob: (N, C), torch Variable
             target : (N, ), torch Variable
             reward : (N, ), torch Variable
         """
@@ -146,7 +146,7 @@ def main():
     # Generate toy data using target lstm
     print('Generating data ...')
     generate_samples(target_lstm, BATCH_SIZE, GENERATED_NUM, POSITIVE_FILE)
-    
+
     # Load data from file
     gen_data_iter = GenDataIter(POSITIVE_FILE, BATCH_SIZE)
 
@@ -176,7 +176,7 @@ def main():
         for _ in range(3):
             loss = train_epoch(discriminator, dis_data_iter, dis_criterion, dis_optimizer)
             print('Epoch [%d], loss: %f' % (epoch, loss))
-    # Adversarial Training 
+    # Adversarial Training
     rollout = Rollout(generator, 0.8)
     print('#####################################################')
     print('Start Adeversatial Training...\n')
@@ -218,7 +218,7 @@ def main():
             loss = eval_epoch(target_lstm, eval_iter, gen_criterion)
             print('Batch [%d] True Loss: %f' % (total_batch, loss))
         rollout.update_params()
-        
+
         for _ in range(4):
             generate_samples(generator, BATCH_SIZE, GENERATED_NUM, NEGATIVE_FILE)
             dis_data_iter = DisDataIter(POSITIVE_FILE, NEGATIVE_FILE, BATCH_SIZE)
