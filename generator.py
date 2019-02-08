@@ -33,7 +33,7 @@ class Generator(nn.Module):
         h0, c0 = self.init_hidden(x.size(0))
         output, (h, c) = self.lstm(emb, (h0, c0))
         pred = self.softmax(self.lin(output.contiguous().view(-1, self.hidden_dim)))
-        return pred        
+        return pred
 
     def step(self, x, h, c):
         """
@@ -44,7 +44,7 @@ class Generator(nn.Module):
         """
         emb = self.emb(x)
         output, (h, c) = self.lstm(emb, (h, c))
-        pred = F.softmax(self.lin(output.view(-1, self.hidden_dim)))
+        pred = F.softmax(self.lin(output.view(-1, self.hidden_dim)), dim=1)
         return pred, h, c
 
 
@@ -54,7 +54,7 @@ class Generator(nn.Module):
         if self.use_cuda:
             h, c = h.cuda(), c.cuda()
         return h, c
-    
+
     def init_params(self):
         for param in self.parameters():
             param.data.uniform_(-0.05, 0.05)

@@ -89,18 +89,21 @@ def train_epoch(model, data_iter, criterion, optimizer):
 def eval_epoch(model, data_iter, criterion):
     total_loss = 0.
     total_words = 0.
-    for (data, target) in data_iter:#tqdm(
-        #data_iter, mininterval=2, desc=' - Training', leave=False):
-        data = Variable(data, volatile=True)
-        target = Variable(target, volatile=True)
-        if opt.cuda:
-            data, target = data.cuda(), target.cuda()
-        target = target.contiguous().view(-1)
-        pred = model.forward(data)
-        loss = criterion(pred, target)
-        total_loss += loss.item()
-        total_words += data.size(0) * data.size(1)
-    data_iter.reset()
+    with torch.no_grad():
+        for (data, target) in data_iter:#tqdm(
+            #data_iter, mininterval=2, desc=' - Training', leave=False):
+            data = Variable(data)
+            target = Variable(target)
+            if opt.cuda:
+                data, target = data.cuda(), target.cuda()
+            target = target.contiguous().view(-1)
+            pred = model.forward(data)
+            loss = criterion(pred, target)
+            total_loss += loss.item()
+            total_words += data.size(0) * data.size(1)
+        data_iter.reset()
+
+    assert total_words > 0  # Otherwise NullpointerException
     return math.exp(total_loss / total_words)
 
 class GANLoss(nn.Module):
@@ -151,7 +154,7 @@ def main():
     gen_data_iter = GenDataIter(POSITIVE_FILE, BATCH_SIZE)
 
     # Pretrain Generator using MLE
-    gen_criterion = nn.NLLLoss(size_average=False)
+    gen_criterion = nn.NLLLoss(reduction='sum')
     gen_optimizer = optim.Adam(generator.parameters())
     if opt.cuda:
         gen_criterion = gen_criterion.cuda()
@@ -165,11 +168,11 @@ def main():
         print('Epoch [%d] True Loss: %f' % (epoch, loss))
 
     # Pretrain Discriminator
-    dis_criterion = nn.NLLLoss(size_average=False)
+    dis_criterion = nn.NLLLoss(reduction='sum')
     dis_optimizer = optim.Adam(discriminator.parameters())
     if opt.cuda:
         dis_criterion = dis_criterion.cuda()
-    print('Pretrain Dsicriminator ...')
+    print('Pretrain Discriminator ...')
     for epoch in range(5):
         generate_samples(generator, BATCH_SIZE, GENERATED_NUM, NEGATIVE_FILE)
         dis_data_iter = DisDataIter(POSITIVE_FILE, NEGATIVE_FILE, BATCH_SIZE)
@@ -184,10 +187,10 @@ def main():
     gen_gan_optm = optim.Adam(generator.parameters())
     if opt.cuda:
         gen_gan_loss = gen_gan_loss.cuda()
-    gen_criterion = nn.NLLLoss(size_average=False)
+    gen_criterion = nn.NLLLoss(reduction='sum')
     if opt.cuda:
         gen_criterion = gen_criterion.cuda()
-    dis_criterion = nn.NLLLoss(size_average=False)
+    dis_criterion = nn.NLLLoss(reduction='sum')
     dis_optimizer = optim.Adam(discriminator.parameters())
     if opt.cuda:
         dis_criterion = dis_criterion.cuda()

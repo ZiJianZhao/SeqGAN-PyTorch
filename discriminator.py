@@ -26,7 +26,7 @@ class Discriminator(nn.Module):
         self.lin = nn.Linear(sum(num_filters), num_classes)
         self.softmax = nn.LogSoftmax()
         self.init_parameters()
-    
+
     def forward(self, x):
         """
         Args:
@@ -37,7 +37,7 @@ class Discriminator(nn.Module):
         pools = [F.max_pool1d(conv, conv.size(2)).squeeze(2) for conv in convs] # [batch_size * num_filter]
         pred = torch.cat(pools, 1)  # batch_size * num_filters_sum
         highway = self.highway(pred)
-        pred = F.sigmoid(highway) *  F.relu(highway) + (1. - F.sigmoid(highway)) * pred
+        pred = torch.sigmoid(highway) *  F.relu(highway) + (1. - torch.sigmoid(highway)) * pred
         pred = self.softmax(self.lin(self.dropout(pred)))
         return pred
 

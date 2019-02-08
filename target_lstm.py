@@ -33,7 +33,7 @@ class TargetLSTM(nn.Module):
         h0, c0 = self.init_hidden(x.size(0))
         output, (h, c) = self.lstm(emb, (h0, c0))
         pred = self.softmax(self.lin(output.contiguous().view(-1, self.hidden_dim)))
-        return pred        
+        return pred
 
     def step(self, x, h, c):
         """
@@ -44,7 +44,7 @@ class TargetLSTM(nn.Module):
         """
         emb = self.emb(x)
         output, (h, c) = self.lstm(emb, (h, c))
-        pred = F.softmax(self.lin(output.view(-1, self.hidden_dim)))
+        pred = F.softmax(self.lin(output.view(-1, self.hidden_dim)), dim=1)
         return pred, h, c
 
 
@@ -54,21 +54,23 @@ class TargetLSTM(nn.Module):
         if self.use_cuda:
             h, c = h.cuda(), c.cuda()
         return h, c
-    
+
     def init_params(self):
         for param in self.parameters():
             param.data.normal_(0, 1)
 
     def sample(self, batch_size, seq_len):
         res = []
-        x = Variable(torch.zeros((batch_size, 1)).long(), volatile=True)
-        if self.use_cuda:
-            x = x.cuda()
-        h, c = self.init_hidden(batch_size)
-        samples = []
-        for i in range(seq_len):
-            output, h, c = self.step(x, h, c)
-            x = output.multinomial(1)
-            samples.append(x)
-        output = torch.cat(samples, dim=1)
-        return output
+        with torch.no_grad():
+            x = Variable(torch.zeros((batch_size, 1)).long())
+            if self.use_cuda:
+                x = x.cuda()
+            h, c = self.init_hidden(batch_size)
+            samples = []
+            for i in range(seq_len):
+                output, h, c = self.step(x, h, c)
+                x = output.multinomial(1)
+                samples.append(x)
+            output = torch.cat(samples, dim=1)
+            return output
+        return None
