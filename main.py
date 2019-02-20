@@ -78,7 +78,7 @@ def train_epoch(model, data_iter, criterion, optimizer):
         target = target.contiguous().view(-1)
         pred = model.forward(data)
         loss = criterion(pred, target)
-        total_loss += loss.data[0]
+        total_loss += loss.item()
         total_words += data.size(0) * data.size(1)
         optimizer.zero_grad()
         loss.backward()
@@ -89,18 +89,21 @@ def train_epoch(model, data_iter, criterion, optimizer):
 def eval_epoch(model, data_iter, criterion):
     total_loss = 0.
     total_words = 0.
-    for (data, target) in data_iter:#tqdm(
-        #data_iter, mininterval=2, desc=' - Training', leave=False):
-        data = Variable(data, volatile=True)
-        target = Variable(target, volatile=True)
-        if opt.cuda:
-            data, target = data.cuda(), target.cuda()
-        target = target.contiguous().view(-1)
-        pred = model.forward(data)
-        loss = criterion(pred, target)
-        total_loss += loss.data[0]
-        total_words += data.size(0) * data.size(1)
-    data_iter.reset()
+    with torch.no_grad():
+        for (data, target) in data_iter:#tqdm(
+            #data_iter, mininterval=2, desc=' - Training', leave=False):
+            data = Variable(data)
+            target = Variable(target)
+            if opt.cuda:
+                data, target = data.cuda(), target.cuda()
+            target = target.contiguous().view(-1)
+            pred = model.forward(data)
+            loss = criterion(pred, target)
+            total_loss += loss.item()
+            total_words += data.size(0) * data.size(1)
+        data_iter.reset()
+
+    assert total_words > 0  # Otherwise NullpointerException
     return math.exp(total_loss / total_words)
 
 class GANLoss(nn.Module):
@@ -111,7 +114,7 @@ class GANLoss(nn.Module):
     def forward(self, prob, target, reward):
         """
         Args:
-            prob: (N, C), torch Variable 
+            prob: (N, C), torch Variable
             target : (N, ), torch Variable
             reward : (N, ), torch Variable
         """
@@ -146,12 +149,12 @@ def main():
     # Generate toy data using target lstm
     print('Generating data ...')
     generate_samples(target_lstm, BATCH_SIZE, GENERATED_NUM, POSITIVE_FILE)
-    
+
     # Load data from file
     gen_data_iter = GenDataIter(POSITIVE_FILE, BATCH_SIZE)
 
     # Pretrain Generator using MLE
-    gen_criterion = nn.NLLLoss(size_average=False)
+    gen_criterion = nn.NLLLoss(reduction='sum')
     gen_optimizer = optim.Adam(generator.parameters())
     if opt.cuda:
         gen_criterion = gen_criterion.cuda()
@@ -165,18 +168,18 @@ def main():
         print('Epoch [%d] True Loss: %f' % (epoch, loss))
 
     # Pretrain Discriminator
-    dis_criterion = nn.NLLLoss(size_average=False)
+    dis_criterion = nn.NLLLoss(reduction='sum')
     dis_optimizer = optim.Adam(discriminator.parameters())
     if opt.cuda:
         dis_criterion = dis_criterion.cuda()
-    print('Pretrain Dsicriminator ...')
+    print('Pretrain Discriminator ...')
     for epoch in range(5):
         generate_samples(generator, BATCH_SIZE, GENERATED_NUM, NEGATIVE_FILE)
         dis_data_iter = DisDataIter(POSITIVE_FILE, NEGATIVE_FILE, BATCH_SIZE)
         for _ in range(3):
             loss = train_epoch(discriminator, dis_data_iter, dis_criterion, dis_optimizer)
             print('Epoch [%d], loss: %f' % (epoch, loss))
-    # Adversarial Training 
+    # Adversarial Training
     rollout = Rollout(generator, 0.8)
     print('#####################################################')
     print('Start Adeversatial Training...\n')
@@ -184,10 +187,10 @@ def main():
     gen_gan_optm = optim.Adam(generator.parameters())
     if opt.cuda:
         gen_gan_loss = gen_gan_loss.cuda()
-    gen_criterion = nn.NLLLoss(size_average=False)
+    gen_criterion = nn.NLLLoss(reduction='sum')
     if opt.cuda:
         gen_criterion = gen_criterion.cuda()
-    dis_criterion = nn.NLLLoss(size_average=False)
+    dis_criterion = nn.NLLLoss(reduction='sum')
     dis_optimizer = optim.Adam(discriminator.parameters())
     if opt.cuda:
         dis_criterion = dis_criterion.cuda()
@@ -204,8 +207,9 @@ def main():
             # calculate the reward
             rewards = rollout.get_reward(samples, 16, discriminator)
             rewards = Variable(torch.Tensor(rewards))
+            rewards = torch.exp(rewards).contiguous().view((-1,))
             if opt.cuda:
-                rewards = torch.exp(rewards.cuda()).contiguous().view((-1,))
+                rewards = rewards.cuda()
             prob = generator.forward(inputs)
             loss = gen_gan_loss(prob, targets, rewards)
             gen_gan_optm.zero_grad()
@@ -218,7 +222,7 @@ def main():
             loss = eval_epoch(target_lstm, eval_iter, gen_criterion)
             print('Batch [%d] True Loss: %f' % (total_batch, loss))
         rollout.update_params()
-        
+
         for _ in range(4):
             generate_samples(generator, BATCH_SIZE, GENERATED_NUM, NEGATIVE_FILE)
             dis_data_iter = DisDataIter(POSITIVE_FILE, NEGATIVE_FILE, BATCH_SIZE)

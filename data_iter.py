@@ -27,7 +27,7 @@ class GenDataIter(object):
 
     def __next__(self):
         return self.next()
-    
+
     def reset(self):
         self.idx = 0
         random.shuffle(self.data_lis)
@@ -63,7 +63,7 @@ class DisDataIter(object):
         self.data = real_data_lis + fake_data_lis
         self.labels = [1 for _ in range(len(real_data_lis))] +\
                         [0 for _ in range(len(fake_data_lis))]
-        self.pairs = zip(self.data, self.labels)
+        self.pairs = list(zip(self.data, self.labels))
         self.data_num = len(self.pairs)
         self.indices = range(self.data_num)
         self.num_batches = int(math.ceil(float(self.data_num)/self.batch_size))
@@ -77,7 +77,7 @@ class DisDataIter(object):
 
     def __next__(self):
         return self.next()
-    
+
     def reset(self):
         self.idx = 0
         random.shuffle(self.pairs)
@@ -103,5 +103,3 @@ class DisDataIter(object):
             l = [int(s) for s in l]
             lis.append(l)
         return lis
-
-

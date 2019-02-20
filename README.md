@@ -2,10 +2,10 @@
 A implementation of SeqGAN in PyTorch, following the implementation in tensorflow.
 
 
-## Requirements: 
-* **PyTorch v0.1.12**
-* Python 2.7
-* CUDA 7.5+ (For GPU)
+## Tested with:
+* **PyTorch v1 Stable**
+* Python 3.6
+* CUDA at least 8.0 (For GPU)
 
 ## Origin
 The idea is from paper [SeqGAN: Sequence Generative Adversarial Nets with Policy Gradient](https://arxiv.org/pdf/1609.05473.pdf)
